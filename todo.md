@@ -105,3 +105,18 @@
 ## Finalização
 - [ ] Criar checkpoint final
 - [ ] Documentação de uso
+
+
+## Integração com APIs da Receita Federal
+- [ ] Pesquisar APIs disponíveis (e-CAC, Simples Nacional, DCTFWeb, FGTS Digital)
+- [ ] Documentar endpoints e autenticação necessária
+- [ ] Implementar serviço de integração com e-CAC
+- [ ] Implementar serviço de integração com Simples Nacional (PGDAS/PGMEI)
+- [ ] Implementar serviço de integração com DCTFWeb
+- [ ] Implementar serviço de integração com FGTS Digital
+- [ ] Criar endpoints backend para sincronização de dados
+- [ ] Implementar sistema de cache e rate limiting
+- [ ] Adicionar interface frontend para sincronização manual
+- [ ] Implementar sincronização automática agendada
+- [ ] Criar testes de integração
+- [ ] Documentar processo de configuração de credenciais

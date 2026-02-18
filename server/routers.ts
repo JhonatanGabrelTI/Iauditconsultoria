@@ -410,6 +410,182 @@ export const appRouter = router({
         return await db.deleteSchedule(input.id);
       }),
   }),
+
+  // ==================== API CONSULTAS ROUTES ====================
+  apiConsultas: router({
+    consultarCNDFederal: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const client = await db.getClientById(input.clientId);
+        if (!client) {
+          throw new Error("Cliente não encontrado");
+        }
+
+        if (client.personType !== "juridica") {
+          throw new Error("CND Federal disponível apenas para Pessoa Jurídica");
+        }
+
+        const { consultarCNDFederal } = await import("./infosimples");
+        
+        try {
+          const resultado = await consultarCNDFederal(client.cnpjCpf);
+          
+          // Salvar consulta no banco
+          await db.createApiConsulta({
+            clientId: input.clientId,
+            userId: ctx.user.id,
+            tipoConsulta: "cnd_federal",
+            situacao: resultado.data?.situacao,
+            numeroCertidao: resultado.data?.numero_certidao,
+            dataEmissao: resultado.data?.data_emissao ? new Date(resultado.data.data_emissao) : undefined,
+            dataValidade: resultado.data?.data_validade ? new Date(resultado.data.data_validade) : undefined,
+            respostaCompleta: JSON.stringify(resultado),
+            sucesso: resultado.code === 200,
+            mensagemErro: resultado.code !== 200 ? resultado.code_message : undefined,
+          });
+
+          return {
+            sucesso: resultado.code === 200,
+            situacao: resultado.data?.situacao,
+            numeroCertidao: resultado.data?.numero_certidao,
+            dataEmissao: resultado.data?.data_emissao,
+            dataValidade: resultado.data?.data_validade,
+            mensagem: resultado.code_message,
+          };
+        } catch (error: any) {
+          // Salvar erro no banco
+          await db.createApiConsulta({
+            clientId: input.clientId,
+            userId: ctx.user.id,
+            tipoConsulta: "cnd_federal",
+            sucesso: false,
+            mensagemErro: error.message,
+          });
+          throw error;
+        }
+      }),
+
+    consultarCNDEstadual: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const client = await db.getClientById(input.clientId);
+        if (!client) {
+          throw new Error("Cliente não encontrado");
+        }
+
+        if (!client.inscricaoEstadual) {
+          throw new Error("Cliente não possui Inscrição Estadual cadastrada");
+        }
+
+        const { consultarCNDEstadual } = await import("./infosimples");
+        
+        try {
+          const resultado = await consultarCNDEstadual(
+            client.inscricaoEstadual,
+            client.personType === "juridica" ? client.cnpjCpf : undefined
+          );
+          
+          await db.createApiConsulta({
+            clientId: input.clientId,
+            userId: ctx.user.id,
+            tipoConsulta: "cnd_estadual",
+            situacao: resultado.data?.situacao,
+            numeroCertidao: resultado.data?.numero_certidao,
+            dataEmissao: resultado.data?.data_emissao ? new Date(resultado.data.data_emissao) : undefined,
+            dataValidade: resultado.data?.data_validade ? new Date(resultado.data.data_validade) : undefined,
+            respostaCompleta: JSON.stringify(resultado),
+            sucesso: resultado.code === 200,
+            mensagemErro: resultado.code !== 200 ? resultado.code_message : undefined,
+          });
+
+          return {
+            sucesso: resultado.code === 200,
+            situacao: resultado.data?.situacao,
+            numeroCertidao: resultado.data?.numero_certidao,
+            dataEmissao: resultado.data?.data_emissao,
+            dataValidade: resultado.data?.data_validade,
+            mensagem: resultado.code_message,
+          };
+        } catch (error: any) {
+          await db.createApiConsulta({
+            clientId: input.clientId,
+            userId: ctx.user.id,
+            tipoConsulta: "cnd_estadual",
+            sucesso: false,
+            mensagemErro: error.message,
+          });
+          throw error;
+        }
+      }),
+
+    consultarRegularidadeFGTS: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const client = await db.getClientById(input.clientId);
+        if (!client) {
+          throw new Error("Cliente não encontrado");
+        }
+
+        if (client.personType !== "juridica") {
+          throw new Error("Regularidade FGTS disponível apenas para Pessoa Jurídica");
+        }
+
+        const { consultarRegularidadeFGTS } = await import("./infosimples");
+        
+        try {
+          const resultado = await consultarRegularidadeFGTS(client.cnpjCpf);
+          
+          await db.createApiConsulta({
+            clientId: input.clientId,
+            userId: ctx.user.id,
+            tipoConsulta: "regularidade_fgts",
+            situacao: resultado.data?.situacao,
+            numeroCertidao: resultado.data?.numero_crf,
+            dataEmissao: resultado.data?.data_emissao ? new Date(resultado.data.data_emissao) : undefined,
+            dataValidade: resultado.data?.data_validade ? new Date(resultado.data.data_validade) : undefined,
+            respostaCompleta: JSON.stringify(resultado),
+            sucesso: resultado.code === 200,
+            mensagemErro: resultado.code !== 200 ? resultado.code_message : undefined,
+          });
+
+          return {
+            sucesso: resultado.code === 200,
+            situacao: resultado.data?.situacao,
+            numeroCertidao: resultado.data?.numero_crf,
+            dataEmissao: resultado.data?.data_emissao,
+            dataValidade: resultado.data?.data_validade,
+            mensagem: resultado.code_message,
+          };
+        } catch (error: any) {
+          await db.createApiConsulta({
+            clientId: input.clientId,
+            userId: ctx.user.id,
+            tipoConsulta: "regularidade_fgts",
+            sucesso: false,
+            mensagemErro: error.message,
+          });
+          throw error;
+        }
+      }),
+
+    historico: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return await db.getApiConsultasByClient(input.clientId);
+      }),
+
+    minhasConsultas: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getApiConsultasByUser(ctx.user.id);
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

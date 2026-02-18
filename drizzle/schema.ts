@@ -322,3 +322,37 @@ export const schedules = mysqlTable("schedules", {
 
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = typeof schedules.$inferInsert;
+
+/**
+ * Consultas API - Histórico de consultas realizadas via InfoSimples
+ */
+export const apiConsultas = mysqlTable("api_consultas", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").notNull(), // Relacionamento com cliente
+  userId: int("userId").notNull(), // Usuário que realizou a consulta
+  
+  // Tipo de consulta
+  tipoConsulta: mysqlEnum("tipoConsulta", [
+    "cnd_federal",
+    "cnd_estadual",
+    "regularidade_fgts"
+  ]).notNull(),
+  
+  // Resultado da consulta
+  situacao: varchar("situacao", { length: 100 }), // "Regular", "Irregular", "Pendente", etc.
+  numeroCertidao: varchar("numeroCertidao", { length: 100 }),
+  dataEmissao: timestamp("dataEmissao"),
+  dataValidade: timestamp("dataValidade"),
+  
+  // Dados completos da resposta (JSON)
+  respostaCompleta: text("respostaCompleta"), // JSON da resposta da API
+  
+  // Status da consulta
+  sucesso: boolean("sucesso").default(true).notNull(),
+  mensagemErro: text("mensagemErro"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ApiConsulta = typeof apiConsultas.$inferSelect;
+export type InsertApiConsulta = typeof apiConsultas.$inferInsert;

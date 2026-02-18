@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { Plus, Search, Users, Building2, User, Shield, FileText } from "lucide-react";
+import { Plus, Search, Users, Building2, User, Shield, FileText, FileCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +29,59 @@ export default function Clientes() {
   const [regimeFilter, setRegimeFilter] = useState<string>("");
   const [personTypeFilter, setPersonTypeFilter] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [consultaDialogOpen, setConsultaDialogOpen] = useState(false);
+  const [consultaResult, setConsultaResult] = useState<any>(null);
+
+  const consultarCNDFederal = trpc.apiConsultas.consultarCNDFederal.useMutation({
+    onSuccess: (data) => {
+      setConsultaResult({ tipo: "CND Federal", ...data });
+      setConsultaDialogOpen(true);
+      refetch();
+    },
+    onError: (error) => {
+      toast.error("Erro ao consultar CND Federal: " + error.message);
+    },
+  });
+
+  const consultarCNDEstadual = trpc.apiConsultas.consultarCNDEstadual.useMutation({
+    onSuccess: (data) => {
+      setConsultaResult({ tipo: "CND Estadual PR", ...data });
+      setConsultaDialogOpen(true);
+      refetch();
+    },
+    onError: (error) => {
+      toast.error("Erro ao consultar CND Estadual: " + error.message);
+    },
+  });
+
+  const consultarFGTS = trpc.apiConsultas.consultarRegularidadeFGTS.useMutation({
+    onSuccess: (data) => {
+      setConsultaResult({ tipo: "Regularidade FGTS", ...data });
+      setConsultaDialogOpen(true);
+      refetch();
+    },
+    onError: (error) => {
+      toast.error("Erro ao consultar Regularidade FGTS: " + error.message);
+    },
+  });
+
+  const handleConsultarCNDFederal = (clientId: number) => {
+    if (confirm("Deseja consultar a CND Federal deste cliente?")) {
+      consultarCNDFederal.mutate({ clientId });
+    }
+  };
+
+  const handleConsultarCNDEstadual = (clientId: number) => {
+    if (confirm("Deseja consultar a CND Estadual deste cliente?")) {
+      consultarCNDEstadual.mutate({ clientId });
+    }
+  };
+
+  const handleConsultarFGTS = (clientId: number) => {
+    if (confirm("Deseja consultar a Regularidade FGTS deste cliente?")) {
+      consultarFGTS.mutate({ clientId });
+    }
+  };
 
   const { data: clients, isLoading, refetch } = trpc.clients.search.useQuery({
     searchTerm: searchTerm || undefined,
@@ -346,9 +399,41 @@ export default function Clientes() {
                           {client.regimeTributario.replace(/_/g, " ").toUpperCase()}
                         </span>
                       )}
-                      <Button variant="ghost" size="sm">
-                        Ver detalhes
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {client.personType === "juridica" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Consultar CND Federal"
+                              onClick={() => handleConsultarCNDFederal(client.id)}
+                              disabled={consultarCNDFederal.isPending}
+                            >
+                              <FileCheck className="h-4 w-4 text-blue-500" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Consultar Regularidade FGTS"
+                              onClick={() => handleConsultarFGTS(client.id)}
+                              disabled={consultarFGTS.isPending}
+                            >
+                              <Building2 className="h-4 w-4 text-green-500" />
+                            </Button>
+                          </>
+                        )}
+                        {client.inscricaoEstadual && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Consultar CND Estadual"
+                            onClick={() => handleConsultarCNDEstadual(client.id)}
+                            disabled={consultarCNDEstadual.isPending}
+                          >
+                            <FileText className="h-4 w-4 text-purple-500" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -365,6 +450,66 @@ export default function Clientes() {
             )}
           </CardContent>
         </Card>
+
+        {/* Modal de Resultado de Consulta */}
+        <Dialog open={consultaDialogOpen} onOpenChange={setConsultaDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Resultado da Consulta</DialogTitle>
+              <DialogDescription>
+                {consultaResult?.tipo}
+              </DialogDescription>
+            </DialogHeader>
+            {consultaResult && (
+              <div className="space-y-4">
+                {consultaResult.sucesso ? (
+                  <>
+                    <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <p className="font-semibold text-green-600">✓ Consulta realizada com sucesso</p>
+                    </div>
+                    
+                    {consultaResult.situacao && (
+                      <div>
+                        <Label>Situação</Label>
+                        <p className="text-lg font-semibold">{consultaResult.situacao}</p>
+                      </div>
+                    )}
+                    
+                    {consultaResult.numeroCertidao && (
+                      <div>
+                        <Label>Número da Certidão</Label>
+                        <p className="font-mono">{consultaResult.numeroCertidao}</p>
+                      </div>
+                    )}
+                    
+                    {consultaResult.dataEmissao && (
+                      <div>
+                        <Label>Data de Emissão</Label>
+                        <p>{consultaResult.dataEmissao}</p>
+                      </div>
+                    )}
+                    
+                    {consultaResult.dataValidade && (
+                      <div>
+                        <Label>Data de Validade</Label>
+                        <p>{consultaResult.dataValidade}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <p className="font-semibold text-red-600">✗ Erro na consulta</p>
+                    <p className="text-sm mt-2">{consultaResult.mensagem}</p>
+                  </div>
+                )}
+                
+                <Button onClick={() => setConsultaDialogOpen(false)} className="w-full">
+                  Fechar
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

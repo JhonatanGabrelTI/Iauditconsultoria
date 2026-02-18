@@ -35,7 +35,10 @@ import {
   Settings,
   schedules,
   InsertSchedule,
-  Schedule
+  Schedule,
+  apiConsultas,
+  InsertApiConsulta,
+  ApiConsulta
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -550,4 +553,40 @@ export async function deleteSchedule(id: number) {
   if (!db) throw new Error("Database not available");
 
   return await db.delete(schedules).where(eq(schedules.id, id));
+}
+
+
+// ==================== API CONSULTAS ====================
+
+export async function createApiConsulta(consulta: InsertApiConsulta): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(apiConsultas).values(consulta);
+}
+
+export async function getApiConsultasByClient(clientId: number): Promise<ApiConsulta[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(apiConsultas).where(eq(apiConsultas.clientId, clientId)).orderBy(desc(apiConsultas.createdAt));
+}
+
+export async function getApiConsultasByUser(userId: number): Promise<ApiConsulta[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(apiConsultas).where(eq(apiConsultas.userId, userId)).orderBy(desc(apiConsultas.createdAt));
+}
+
+export async function getLatestApiConsulta(
+  clientId: number,
+  tipoConsulta: "cnd_federal" | "cnd_estadual" | "regularidade_fgts"
+): Promise<ApiConsulta | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const results = await db
+    .select()
+    .from(apiConsultas)
+    .where(and(eq(apiConsultas.clientId, clientId), eq(apiConsultas.tipoConsulta, tipoConsulta)))
+    .orderBy(desc(apiConsultas.createdAt))
+    .limit(1);
+  return results[0];
 }
